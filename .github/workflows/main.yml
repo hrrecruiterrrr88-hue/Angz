@@ -1,4 +1,4 @@
-name: Build Anjez Manifest-Fixer
+name: Build Anjez Full Auto-Fix & Sign
 
 on:
   push:
@@ -18,39 +18,53 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Auto-Fix Manifest Conflicts
+      - name: Full Auto-Repair Project
         run: |
-          # إضافة سطر في المانيفست يحل تعارض المكتبات أوتوماتيك
-          MANIFEST_PATH="app/src/main/AndroidManifest.xml"
-          if [ -f "$MANIFEST_PATH" ]; then
-            # إضافة xmlns:tools لو مش موجودة
-            sed -i 's/<manifest/<manifest xmlns:tools="http:\/\/schemas.android.com\/tools"/' $MANIFEST_PATH
-            # إجبار المانيفست إنه يستخدم الأيقونة والثيم بتوعك ويحل التعارض
-            sed -i 's/<application/<application tools:replace="android:icon,android:theme"/' $MANIFEST_PATH
-            echo "Manifest conflicts patched!"
-          fi
-
-      - name: Smart-Check & Fix Configs
-        run: |
-          if [ ! -f "gradle.properties" ]; then
-            echo "android.useAndroidX=true" > gradle.properties
-            echo "android.enableJetifier=true" >> gradle.properties
-          fi
+          # 1. تفعيل AndroidX
+          echo "android.useAndroidX=true" > gradle.properties
+          echo "android.enableJetifier=true" >> gradle.properties
+          
+          # 2. إعادة كتابة المانيفست من الصفر عشان نخلص من أخطاء الـ Name والـ Intent
+          mkdir -p app/src/main
+          cat <<EOF > app/src/main/AndroidManifest.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:tools="http://schemas.android.com/tools"
+              package="com.anjez.app">
+              <application
+                  android:allowBackup="true"
+                  android:icon="@mipmap/ic_launcher"
+                  android:label="Anjez"
+                  android:roundIcon="@mipmap/ic_launcher_round"
+                  android:supportsRtl="true"
+                  android:theme="@style/Theme.MaterialComponents.Light.NoActionBar"
+                  tools:replace="android:theme">
+                  <activity 
+                      android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: 8.5
 
-      - name: Build APK
+      - name: Build & Sign APK (Release)
         run: |
           gradle wrapper --gradle-version 8.5
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          # بناء النسخة النهائية
+          ./gradlew assembleRelease --no-daemon
 
-      - name: Upload Final APK
-        if: success()
+      - name: Upload Production APK
         uses: actions/upload-artifact@v4
         with:
-          name: Anjez-Fixed-Manifest
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: Anjez-Production-Ready
+          path: app/build/outputs/apk/release/*.apk
