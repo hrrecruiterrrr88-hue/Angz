@@ -1,4 +1,4 @@
-name: Build Anjez APK with Icon
+name: Build Anjez APK
 
 on:
   push:
@@ -9,35 +9,37 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4 # تحديث لـ v4
+      - uses: actions/checkout@v4
 
-      - name: set up JDK 17
-        uses: actions/setup-java@v4 # تحديث لـ v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
 
-      # خطوة دمج الأيقونة داخل ملفات الأندرويد
+      # هذه الخطوة ستقوم بإنشاء ملفات Gradle المتوافقة تلقائياً داخل السيرفر
+      - name: Generate Gradle Wrapper
+        run: |
+          npm install -g gradle
+          gradle wrapper --gradle-version 8.0
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # خطوة دمج الأيقونة (اختياري لو رفعت icon.png)
       - name: Inject App Icon
         run: |
           mkdir -p app/src/main/res/mipmap-xxhdpi
           if [ -f "icon.png" ]; then
             cp icon.png app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-          else
-            echo "Warning: icon.png not found, using default icon"
           fi
-          # تعديل المانيفست ليتعرف على الأيقونة
           sed -i 's/android:supportsRtl="true"/android:supportsRtl="true" android:icon="@mipmap\/ic_launcher"/' app/src/main/AndroidManifest.xml
-
-      - name: Setup Gradle
-        run: gradle init --type java-application
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4 # تحديث لـ v4 (هذا هو حل المشكلة)
+        uses: actions/upload-artifact@v4
         with:
           name: Anjez-App-Final
           path: app/build/outputs/apk/debug/app-debug.apk
