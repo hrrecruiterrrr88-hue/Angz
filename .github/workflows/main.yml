@@ -1,4 +1,4 @@
-name: Build Anjez Full Auto-Fix & Sign
+name: Build Anjez Final Fix
 
 on:
   push:
@@ -18,27 +18,24 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Full Auto-Repair Project
+      - name: Force Fix Manifest & Resources
         run: |
-          # 1. تفعيل AndroidX
+          # 1. تفعيل الخصائص الأساسية
           echo "android.useAndroidX=true" > gradle.properties
           echo "android.enableJetifier=true" >> gradle.properties
           
-          # 2. إعادة كتابة المانيفست من الصفر عشان نخلص من أخطاء الـ Name والـ Intent
+          # 2. كتابة مانيفست "مضمون" يستخدم أيقونة وثيم النظام الافتراضي (عشان ميفشلش)
           mkdir -p app/src/main
           cat <<EOF > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-              xmlns:tools="http://schemas.android.com/tools"
               package="com.anjez.app">
               <application
                   android:allowBackup="true"
-                  android:icon="@mipmap/ic_launcher"
+                  android:icon="@android:drawable/sym_def_app_icon"
                   android:label="Anjez"
-                  android:roundIcon="@mipmap/ic_launcher_round"
                   android:supportsRtl="true"
-                  android:theme="@style/Theme.MaterialComponents.Light.NoActionBar"
-                  tools:replace="android:theme">
+                  android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar">
                   <activity 
                       android:name=".MainActivity"
                       android:exported="true">
@@ -56,15 +53,16 @@ jobs:
         with:
           gradle-version: 8.5
 
-      - name: Build & Sign APK (Release)
+      - name: Build Release APK
         run: |
           gradle wrapper --gradle-version 8.5
           chmod +x gradlew
-          # بناء النسخة النهائية
-          ./gradlew assembleRelease --no-daemon
+          # تنظيف وبناء
+          ./gradlew clean assembleRelease --no-daemon
 
-      - name: Upload Production APK
+      - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: Anjez-Production-Ready
+          name: Anjez-Store-Ready
           path: app/build/outputs/apk/release/*.apk
