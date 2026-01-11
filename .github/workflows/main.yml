@@ -1,4 +1,4 @@
-name: Build Anjez App
+name: Build Anjez Smart-Fixer
 
 on:
   push:
@@ -18,26 +18,46 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # الخطوة دي بتصنع الملف إجباري قبل البناء
-      - name: Create gradle.properties safely
+      - name: Smart-Check & Fix Structure
         run: |
-          echo "android.useAndroidX=true" > gradle.properties
-          echo "android.enableJetifier=true" >> gradle.properties
+          # 1. فحص ملف settings.gradle
+          if [ ! -f "settings.gradle" ]; then
+            echo "Settings file missing! Creating default..."
+            echo "include ':app'" > settings.gradle
+          else
+            echo "settings.gradle exists. Skipping..."
+          fi
 
-      - name: Setup Gradle 8.5
+          # 2. فحص ملف gradle.properties وتفعيله لو ناقص
+          if [ ! -f "gradle.properties" ]; then
+            echo "gradle.properties missing! Creating with AndroidX enabled..."
+            echo "android.useAndroidX=true" > gradle.properties
+            echo "android.enableJetifier=true" >> gradle.properties
+          else
+            # لو الملف موجود بس مش مفعل الـ AndroidX، هنضيفها له
+            if ! grep -q "android.useAndroidX=true" gradle.properties; then
+              echo "Enabling AndroidX in existing gradle.properties..."
+              echo "android.useAndroidX=true" >> gradle.properties
+              echo "android.enableJetifier=true" >> gradle.properties
+            else
+              echo "AndroidX is already enabled in gradle.properties."
+            fi
+          fi
+
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: 8.5
 
-      - name: Build with Gradle
+      - name: Build APK
         run: |
           gradle wrapper --gradle-version 8.5
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
-          
-      - name: Upload APK
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload Final APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: Anjez-App-Final
+          name: Anjez-Smart-Build
           path: app/build/outputs/apk/debug/app-debug.apk
