@@ -1,4 +1,4 @@
-name: Build Anjez Smart-Fixer
+name: Build Anjez Manifest-Fixer
 
 on:
   push:
@@ -18,30 +18,23 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Smart-Check & Fix Structure
+      - name: Auto-Fix Manifest Conflicts
         run: |
-          # 1. فحص ملف settings.gradle
-          if [ ! -f "settings.gradle" ]; then
-            echo "Settings file missing! Creating default..."
-            echo "include ':app'" > settings.gradle
-          else
-            echo "settings.gradle exists. Skipping..."
+          # إضافة سطر في المانيفست يحل تعارض المكتبات أوتوماتيك
+          MANIFEST_PATH="app/src/main/AndroidManifest.xml"
+          if [ -f "$MANIFEST_PATH" ]; then
+            # إضافة xmlns:tools لو مش موجودة
+            sed -i 's/<manifest/<manifest xmlns:tools="http:\/\/schemas.android.com\/tools"/' $MANIFEST_PATH
+            # إجبار المانيفست إنه يستخدم الأيقونة والثيم بتوعك ويحل التعارض
+            sed -i 's/<application/<application tools:replace="android:icon,android:theme"/' $MANIFEST_PATH
+            echo "Manifest conflicts patched!"
           fi
 
-          # 2. فحص ملف gradle.properties وتفعيله لو ناقص
+      - name: Smart-Check & Fix Configs
+        run: |
           if [ ! -f "gradle.properties" ]; then
-            echo "gradle.properties missing! Creating with AndroidX enabled..."
             echo "android.useAndroidX=true" > gradle.properties
             echo "android.enableJetifier=true" >> gradle.properties
-          else
-            # لو الملف موجود بس مش مفعل الـ AndroidX، هنضيفها له
-            if ! grep -q "android.useAndroidX=true" gradle.properties; then
-              echo "Enabling AndroidX in existing gradle.properties..."
-              echo "android.useAndroidX=true" >> gradle.properties
-              echo "android.enableJetifier=true" >> gradle.properties
-            else
-              echo "AndroidX is already enabled in gradle.properties."
-            fi
           fi
 
       - name: Setup Gradle
@@ -59,5 +52,5 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: Anjez-Smart-Build
+          name: Anjez-Fixed-Manifest
           path: app/build/outputs/apk/debug/app-debug.apk
