@@ -18,7 +18,12 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # إجبار السيرفر على تحميل إصدار 8.5 المستقر
+      # الخطوة دي بتصنع الملف إجباري قبل البناء
+      - name: Create gradle.properties safely
+        run: |
+          echo "android.useAndroidX=true" > gradle.properties
+          echo "android.enableJetifier=true" >> gradle.properties
+
       - name: Setup Gradle 8.5
         uses: gradle/actions/setup-gradle@v3
         with:
@@ -26,7 +31,13 @@ jobs:
 
       - name: Build with Gradle
         run: |
-          # توليد الـ Wrapper لنسخة 8.5 حصراً
           gradle wrapper --gradle-version 8.5
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace
+          
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Anjez-App-Final
+          path: app/build/outputs/apk/debug/app-debug.apk
