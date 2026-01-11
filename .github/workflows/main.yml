@@ -1,42 +1,53 @@
-name: Build Anjez APK
+name: Build Anjez App
 
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch:
+  workflow_dispatch: # يسمح لك بتشغيل البناء يدوياً
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
+    steps:
+      # 1. سحب الكود من المستودع
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. إعداد لغة الجافا (مطلوبة لأندرويد)
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
+          cache: gradle
 
-      # خطوة مهمة: بناء ملفات التشغيل المفقودة
-      - name: Create Gradle Wrapper
-        run: gradle wrapper --gradle-version 8.5
+      # 3. إعداد الجرادل (Gradle) بأحدث نسخة مستقرة
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.5
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
+      # 4. دمج الأيقونة الجديدة (لو رفعت صورة باسم icon.png)
       - name: Inject App Icon
         run: |
           mkdir -p app/src/main/res/mipmap-xxhdpi
           if [ -f "icon.png" ]; then
             cp icon.png app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+            echo "Icon updated successfully."
+          else
+            echo "Icon not found, using default."
           fi
+          # تعديل المانيفست ليتعرف على الأيقونة
           sed -i 's/android:supportsRtl="true"/android:supportsRtl="true" android:icon="@mipmap\/ic_launcher"/' app/src/main/AndroidManifest.xml
 
-      - name: Build with Gradle
-        run: ./gradlew assembleDebug
+      # 5. بناء ملف الـ APK
+      - name: Build Debug APK
+        run: chmod +x gradlew && ./gradlew assembleDebug
 
-      - name: Upload APK
+      # 6. استخراج الملف الناتج لتحميله
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Anjez-App-Final
+          name: Anjez-Build-2026
           path: app/build/outputs/apk/debug/app-debug.apk
