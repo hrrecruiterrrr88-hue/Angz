@@ -14,17 +14,30 @@ jobs:
 
       - name: Hard-Fix Project
         run: |
-          # 1. إصلاح تضارب الجافا وكوتلن في كل الملفات (توحيد النسخة لـ 17)
+          # 1. تنظيف أي إعدادات جافا قديمة وإجبار النسخة 17 في كل الملفات
           find . -name "build.gradle*" -exec sed -i "s/JavaVersion.VERSION_1_8/JavaVersion.VERSION_17/g" {} +
-          find . -name "build.gradle*" -exec sed -i "s/targetCompatibility 1.8/targetCompatibility 17/g" {} +
+          find . -name "build.gradle*" -exec sed -i "s/sourceCompatibility 1.8/sourceCompatibility JavaVersion.VERSION_17/g" {} +
+          find . -name "build.gradle*" -exec sed -i "s/targetCompatibility 1.8/targetCompatibility JavaVersion.VERSION_17/g" {} +
           find . -name "build.gradle*" -exec sed -i "s/jvmTarget = '1.8'/jvmTarget = '17'/g" {} +
 
-          # 2. إضافة إعدادات AndroidX و Jetifier في gradle.properties لو ناقصة
-          touch gradle.properties
-          grep -q '^android.useAndroidX=true' gradle.properties || echo 'android.useAndroidX=true' >> gradle.properties
-          grep -q '^android.enableJetifier=true' gradle.properties || echo 'android.enableJetifier=true' >> gradle.properties
+          # 2. حقن إعدادات الـ Kotlin والـ CompileOptions إجبارياً في آخر ملف build.gradle بتاع الـ app
+          cat <<EOF >> app/build.gradle
+          android {
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+              kotlinOptions {
+                  jvmTarget = '17'
+              }
+          }
+          EOF
 
-          # 3. إنشاء مانيفست طوارئ لتفادي نقص الصور أو الثيمات
+          # 3. إعداد الخصائص والمانيفست
+          touch gradle.properties
+          echo 'android.useAndroidX=true' > gradle.properties
+          echo 'android.enableJetifier=true' >> gradle.properties
+          
           mkdir -p app/src/main
           echo '<?xml version="1.0" encoding="utf-8"?><manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.anjez.app"><application android:label="Anjez" android:icon="@android:drawable/sym_def_app_icon" android:theme="@android:style/Theme.DeviceDefault.NoActionBar"><activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>' > app/src/main/AndroidManifest.xml
 
@@ -35,11 +48,10 @@ jobs:
 
       - name: Build
         run: |
-          # توليد ملفات الـ Wrapper أولاً لضمان وجود gradlew
           gradle wrapper --gradle-version 8.5
           chmod +x gradlew
-          # بناء نسخة الـ Release مع تنظيف المخلفات القديمة
-          ./gradlew clean assembleRelease --stacktrace
+          # إجبار الجافا من نظام التشغيل أيضاً
+          ./gradlew clean assembleRelease --stacktrace -Dorg.gradle.java.home=$JAVA_HOME
 
       - name: Upload
         uses: actions/upload-artifact@v4
