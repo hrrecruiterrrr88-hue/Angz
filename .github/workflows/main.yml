@@ -3,51 +3,34 @@ name: Build Anjez App
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch: # يسمح لك بتشغيل البناء يدوياً
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. سحب الكود من المستودع
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 2. إعداد لغة الجافا (مطلوبة لأندرويد)
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
+          # شلنا الـ cache: gradle من هنا عشان سيرفرات جيت هاب واقعة
 
-      # 3. إعداد الجرادل (Gradle) بأحدث نسخة مستقرة
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: 8.5
+      - name: Generate Gradle Wrapper
+        run: gradle wrapper --gradle-version 8.5
 
-      # 4. دمج الأيقونة الجديدة (لو رفعت صورة باسم icon.png)
-      - name: Inject App Icon
-        run: |
-          mkdir -p app/src/main/res/mipmap-xxhdpi
-          if [ -f "icon.png" ]; then
-            cp icon.png app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-            echo "Icon updated successfully."
-          else
-            echo "Icon not found, using default."
-          fi
-          # تعديل المانيفست ليتعرف على الأيقونة
-          sed -i 's/android:supportsRtl="true"/android:supportsRtl="true" android:icon="@mipmap\/ic_launcher"/' app/src/main/AndroidManifest.xml
-
-      # 5. بناء ملف الـ APK
       - name: Build Debug APK
-        run: chmod +x gradlew && ./gradlew assembleDebug
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+          # أضفنا --no-daemon عشان نضمن إن العملية تتم بنضافة ومتحصلش مشاكل في الذاكرة
 
-      # 6. استخراج الملف الناتج لتحميله
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Anjez-Build-2026
+          name: Anjez-Build-Final
           path: app/build/outputs/apk/debug/app-debug.apk
